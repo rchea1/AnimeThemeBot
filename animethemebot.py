@@ -14,8 +14,7 @@ def run_bot(reddit):
     print('Obtaining 25 comments')
     for comment in reddit.subreddit('test').comments(limit=25):
         for match in re.finditer('!op\((.*)\)', comment.body, re.S):
-            print('Someone requested an op/ed')
-            print('This was what was commented: ' + match.group(1))
+            print('This was what was commented: {}'.format(match.group(1)))
     print('Resting for 10 seconds...')
     time.sleep(10)
 
@@ -26,4 +25,4 @@ def main():
         run_bot(reddit)
 
 if __name__ == '__main__':
-    main();
+    main()
