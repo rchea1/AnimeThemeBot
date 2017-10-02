@@ -1,6 +1,13 @@
 import praw
 import time
 import re
+import sqlite3
+import os
+from datetime import datetime, date
+
+SCRIPT_DIR = os.path.dirname(__file__)
+COMMENTS_DB_CONN = sqlite3.connect(os.path.join(SCRIPT_DIR, 'animetheme.db'), detect_types=sqlite3.PARSE_DECLTYPES)
+COMMENTS_DB_CURSOR = COMMENTS_DB_CONN.cursor()
 
 # Log into reddit
 def authenticate():
@@ -11,24 +18,46 @@ def authenticate():
 
 # Get 25 comments and see if anyone requested an OP/ED using "!op" or "!ed"
 def run_bot(reddit):
-    comment = 'Here are the openings I found: '
     # URLs for opening and endings go in these arrays
     openingArray = []
     endingArray = []
+    commentReply = ''
+
     print('Obtaining 25 comments')
     for comment in reddit.subreddit('test').comments(limit=25):
         for match in re.finditer('!op\((.*)\)', comment.body, re.S):
+            COMMENTS_DB_CURSOR.execute('SELECT id FROM comments WHERE id=?', [comment.id])
+            if COMMENTS_DB_CURSOR.fetchone():
+                continue
+            replyToThis = comment
+            add_comment_id(comment.id)
             # Fills the array with anime opening URLs
-            for submission in reddit.subreddit('animethemes').search(match.group(1)):
-                openingArray.append(submission.url)
-            openingNumber = 0
+            for submission in reddit.subreddit('animethemes').search(match.group(1), 'new'):
+                if submission.link_flair_text == 'Added to wiki' and '[OP]' in submission.title:
+                     openingArray.append(submission)
+            if not openingArray:
+                print('Could not find any openings for this anime')
+                return
+            commentReply += 'Here are the openings I found for **{}'.format(match.group(1)) + '**'
+
+            i = 0
+            openingArray = list(reversed(openingArray))
             for url in openingArray:
-                openingNumber += 1
-                comment += '[OP #' + openingNumber + '] ' + url # TODO
-                print(comment)
-    print('Resting for 10 seconds...')
+                commentReply += '\n\n' + '[' + openingArray[i].title + '](' + openingArray[i].url + ')'
+                i += 1
+            commentReply += ('\n\n***    \n\n[Source](https://github.com/Knotts/AnimeThemeBot) \| Videos' +
+                     ' taken from [/r/animethemes](https://reddit.com/r/animethemes) \| Programmed by /u/' +
+                     'Knoticus')
+
+            print('Replying to comment...')
+            replyToThis.reply(commentReply)
+            # print(commentReply)
+            print('Reply completed, resting for 10 seconds...')
     time.sleep(10)
 
+def add_comment_id(comment_id):
+    COMMENTS_DB_CURSOR.execute('INSERT INTO comments VALUES (?, ?)', (comment_id, date.today()))
+    COMMENTS_DB_CONN.commit()
 
 def main():
     reddit = authenticate()
