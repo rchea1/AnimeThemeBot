@@ -53,7 +53,9 @@ def run_bot(reddit):
             replyToThis.reply(commentReply)
             # print(commentReply)
             print('Reply completed, resting for 10 seconds...')
-    time.sleep(10)
+            openingArray = []
+            commentReply = ''
+            time.sleep(10)
 
 def add_comment_id(comment_id):
     COMMENTS_DB_CURSOR.execute('INSERT INTO comments VALUES (?, ?)', (comment_id, date.today()))
